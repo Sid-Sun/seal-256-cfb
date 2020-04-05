@@ -6,10 +6,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/sid-sun/seaturtle"
 	"io"
 	"io/ioutil"
 	"os"
-	"seaturtle"
 )
 
 func main() {
