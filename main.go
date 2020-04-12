@@ -69,17 +69,25 @@ func encrypt(key, plaintext []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	ciphertext := make([]byte, seaturtle.BlockSize+len(plaintext))
+	originalPlaintextLength := len(plaintext)
 
-	iv := ciphertext[:seaturtle.BlockSize]
+	var emptyByte byte
+
+	for i:=0;i<seaturtle.BlockSize;i++ {
+		plaintext = append(plaintext, emptyByte)
+	}
+
+	//ciphertext := make([]byte, seaturtle.BlockSize+len(plaintext))
+
+	iv := plaintext[originalPlaintextLength:]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return nil, err
 	}
 
 	cfb := cipher.NewCFBEncrypter(block, iv)
-	cfb.XORKeyStream(ciphertext[seaturtle.BlockSize:], plaintext)
+	cfb.XORKeyStream(plaintext[:originalPlaintextLength], plaintext[:originalPlaintextLength])
 
-	return ciphertext, nil
+	return plaintext, nil
 }
 
 func decrypt(key, ciphertext []byte) ([]byte, error) {
@@ -92,8 +100,10 @@ func decrypt(key, ciphertext []byte) ([]byte, error) {
 		return nil, errors.New("ciphertext too short")
 	}
 
-	iv := ciphertext[:seaturtle.BlockSize]
-	ciphertext = ciphertext[seaturtle.BlockSize:]
+	cipherTextLength := len(ciphertext) - seaturtle.BlockSize
+
+	iv := ciphertext[cipherTextLength:]
+	ciphertext = ciphertext[:cipherTextLength]
 
 	cfb := cipher.NewCFBDecrypter(block, iv)
 	cfb.XORKeyStream(ciphertext, ciphertext)
