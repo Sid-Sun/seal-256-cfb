@@ -87,6 +87,9 @@ func encrypt(key, plaintext []byte) ([]byte, error) {
 	cfb := cipher.NewCFBEncrypter(block, iv)
 	cfb.XORKeyStream(plaintext[:originalPlaintextLength], plaintext[:originalPlaintextLength])
 
+	//Rotate plaintext by the original text's length so that the iv bytes are in the front again
+	plaintext = append(plaintext[originalPlaintextLength:], plaintext[:originalPlaintextLength]...)
+
 	return plaintext, nil
 }
 
@@ -100,10 +103,8 @@ func decrypt(key, ciphertext []byte) ([]byte, error) {
 		return nil, errors.New("ciphertext too short")
 	}
 
-	cipherTextLength := len(ciphertext) - seaturtle.BlockSize
-
-	iv := ciphertext[cipherTextLength:]
-	ciphertext = ciphertext[:cipherTextLength]
+	iv := ciphertext[:seaturtle.BlockSize]
+	ciphertext = ciphertext[seaturtle.BlockSize:]
 
 	cfb := cipher.NewCFBDecrypter(block, iv)
 	cfb.XORKeyStream(ciphertext, ciphertext)
