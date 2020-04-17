@@ -6,10 +6,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/sid-sun/seaturtle"
 	"io"
 	"io/ioutil"
 	"os"
+	"sealion"
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 		os.Exit(0)
 	}
 	if outputPath == "" {
-		outputPath = os.Args[2] + ".seat"
+		outputPath = os.Args[2] + ".seal"
 	}
 	key := sha256.Sum256(passPhrase)
 
@@ -64,7 +64,7 @@ func main() {
 }
 
 func encrypt(key, plaintext []byte) ([]byte, error) {
-	block, err := seaturtle.NewCipher(key)
+	block, err := sealion.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
@@ -73,12 +73,10 @@ func encrypt(key, plaintext []byte) ([]byte, error) {
 
 	var emptyByte byte
 
-	for i:=0;i<seaturtle.BlockSize;i++ {
+	for i := 0; i < sealion.BlockSize; i++ {
 		plaintext = append(plaintext, emptyByte)
 	}
-
-	//ciphertext := make([]byte, seaturtle.BlockSize+len(plaintext))
-
+	
 	iv := plaintext[originalPlaintextLength:]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return nil, err
@@ -94,17 +92,17 @@ func encrypt(key, plaintext []byte) ([]byte, error) {
 }
 
 func decrypt(key, ciphertext []byte) ([]byte, error) {
-	block, err := seaturtle.NewCipher(key)
+	block, err := sealion.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(ciphertext) < seaturtle.BlockSize {
+	if len(ciphertext) < sealion.BlockSize {
 		return nil, errors.New("ciphertext too short")
 	}
 
-	iv := ciphertext[:seaturtle.BlockSize]
-	ciphertext = ciphertext[seaturtle.BlockSize:]
+	iv := ciphertext[:sealion.BlockSize]
+	ciphertext = ciphertext[sealion.BlockSize:]
 
 	cfb := cipher.NewCFBDecrypter(block, iv)
 	cfb.XORKeyStream(ciphertext, ciphertext)
