@@ -22,8 +22,8 @@ func main() {
 			toEncrypt = true
 		} else if os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "-help" {
 			fmt.Printf("\nUsage:\n")
-			fmt.Printf("    For encoding: %s (--encrypt / -encrypt / -e) <input file> <passphrase file> <output file (optional)>.\n", os.Args[0])
-			fmt.Printf("    For decoding: %s (--decrypt / -decrypt / -d) <encrypted input> <passphrase file> <output file (optional)>.\n", os.Args[0])
+			fmt.Printf("    For encryption: %s (--encrypt / -encrypt / -e) <input file> <passphrase file> <output file (optional)>.\n", os.Args[0])
+			fmt.Printf("    For decryption: %s (--decrypt / -decrypt / -d) <encrypted input> <passphrase file> <output file (optional)>.\n", os.Args[0])
 		} else if !(os.Args[1] == "-d" || os.Args[1] == "--decrypt" || os.Args[1] == "-decrypt") {
 			fmt.Println("Invalid argument:", os.Args[1])
 		}
@@ -34,8 +34,8 @@ func main() {
 		passPhrase = readFromFile(os.Args[3])
 	} else {
 		fmt.Printf("Usage:\n")
-		fmt.Printf("    For encoding: %s (--encrypt / -encrypt / -e) <input file> <passphrase file> <output file (optional)>.\n", os.Args[0])
-		fmt.Printf("    For decoding: %s (--decrypt / -decrypt / -d) <encrypted input> <passphrase file> <output file (optional)>.\n", os.Args[0])
+		fmt.Printf("    For encryption: %s (--encrypt / -encrypt / -e) <input file> <passphrase file> <output file (optional)>.\n", os.Args[0])
+		fmt.Printf("    For decryption: %s (--decrypt / -decrypt / -d) <encrypted input> <passphrase file> <output file (optional)>.\n", os.Args[0])
 		os.Exit(0)
 	}
 	if outputPath == "" {
