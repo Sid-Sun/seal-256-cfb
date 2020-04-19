@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/sid-sun/seaturtle"
 	"io"
 	"io/ioutil"
 	"os"
@@ -71,12 +72,9 @@ func encrypt(key, plaintext []byte) ([]byte, error) {
 
 	originalPlaintextLength := len(plaintext)
 
-	var emptyByte byte
+	emptyBytes := make([]byte, seaturtle.BlockSize)
+	plaintext = append(plaintext, emptyBytes...)
 
-	for i := 0; i < sealion.BlockSize; i++ {
-		plaintext = append(plaintext, emptyByte)
-	}
-	
 	iv := plaintext[originalPlaintextLength:]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return nil, err
