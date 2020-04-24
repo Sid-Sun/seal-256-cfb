@@ -6,11 +6,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/sid-sun/seaturtle"
+	"github.com/sid-sun/sealion"
 	"io"
 	"io/ioutil"
 	"os"
-	"sealion"
 )
 
 func main() {
@@ -72,7 +71,7 @@ func encrypt(key, plaintext []byte) ([]byte, error) {
 
 	originalPlaintextLength := len(plaintext)
 
-	emptyBytes := make([]byte, seaturtle.BlockSize)
+	emptyBytes := make([]byte, sealion.BlockSize)
 	plaintext = append(plaintext, emptyBytes...)
 
 	iv := plaintext[originalPlaintextLength:]
