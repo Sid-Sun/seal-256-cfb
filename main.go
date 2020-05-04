@@ -8,17 +8,21 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/sid-sun/sealion"
 )
 
 func main() {
 	var toEncrypt bool
-	var passPhrase []byte
 	var outputPath string
+	var err error
 
+	var sealionCipher cipher.Block
+	var passPhrase []byte
+
+	var inputStream, outputStream chan []byte
 	var wg sync.WaitGroup
-	inputStream := make(chan []byte, 65536)
 
 	if len(os.Args) == 4 || len(os.Args) == 5 {
 		if os.Args[1] == "-e" || os.Args[1] == "--encrypt" || os.Args[1] == "-encrypt" {
@@ -35,10 +39,31 @@ func main() {
 			outputPath = os.Args[4]
 		}
 
+		passPhrase = readFromFile(os.Args[3])
+		key := sha256.Sum256(passPhrase)
+
+		sealionCipher, err = sealion.NewCipher(key[:])
+		if err != nil {
+			panic(err.Error())
+		}
+
+		samples := 10
+		sampleBytes := make([]byte, sealion.BlockSize)
+		var avg time.Duration
+
+		for i := 0; i < samples; i++ {
+			t0 := time.Now()
+			sealionCipher.Encrypt(sampleBytes, sampleBytes)
+			avg += time.Now().Sub(t0)
+		}
+		rate := (int64(sealion.BlockSize*samples) / avg.Microseconds()) * sealion.BlockSize * 1000
+
+		inputStream = make(chan []byte, rate) // 65536 - 1048576 - 524288 - 540672 - 655360*
+		outputStream = make(chan []byte, rate)
+
 		wg.Add(1)
 		go startReader(os.Args[2], &inputStream, &wg)
 
-		passPhrase = readFromFile(os.Args[3])
 	} else {
 		fmt.Printf("Usage:\n")
 		fmt.Printf("    For encryption: %s (--encrypt / -encrypt / -e) <input file> <passphrase file> <output file (optional)>.\n", os.Args[0])
@@ -51,27 +76,28 @@ func main() {
 	}
 
 	// Run passphrase through SHA256 to get key
-	key := sha256.Sum256(passPhrase)
-	outputStream := make(chan []byte, 65536)
+	// key := sha256.Sum256(passPhrase)
+	// outputStream := make(chan []byte, )
 
 	wg.Add(2)
 	if toEncrypt {
-		go encrypt(key[:], &inputStream, &outputStream, &wg)
+		// go encrypt(key[:], &inputStream, &outputStream, &wg)
+		go encrypt(&sealionCipher, &inputStream, &outputStream, &wg)
 	} else {
-		go decrypt(key[:], &inputStream, &outputStream, &wg)
+		go decrypt(&sealionCipher, &inputStream, &outputStream, &wg)
 	}
 	go startWriter(outputPath, &outputStream, &wg)
 
 	wg.Wait()
 }
 
-func encrypt(key []byte, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
-	seaLionCipher, err := sealion.NewCipher(key)
-	if err != nil {
-		panic(err.Error())
-	}
+func encrypt(sealionCipher *cipher.Block, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
+	// sealionCipher, err := sealion.NewCipher(key)
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
 
-	iv := make([]byte, seaLionCipher.BlockSize())
+	iv := make([]byte, (*sealionCipher).BlockSize())
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		panic(err.Error())
 	}
@@ -82,7 +108,7 @@ func encrypt(key []byte, inputStream, outputStream *chan []byte, wg *sync.WaitGr
 	*outputStream <- iv
 
 	// Create new CFB Encryptor
-	cfb := cipher.NewCFBEncrypter(seaLionCipher, iv)
+	cfb := cipher.NewCFBEncrypter(*sealionCipher, iv)
 
 	for {
 		block := <-*inputStream
@@ -101,14 +127,14 @@ func encrypt(key []byte, inputStream, outputStream *chan []byte, wg *sync.WaitGr
 	wg.Done()
 }
 
-func decrypt(key []byte, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
-	seaLionCipher, err := sealion.NewCipher(key)
-	if err != nil {
-		panic(err.Error())
-	}
+func decrypt(sealionCipher *cipher.Block, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
+	// seaLionCipher, err := sealion.NewCipher(key)
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
 
 	iv := <-*inputStream
-	cfb := cipher.NewCFBDecrypter(seaLionCipher, iv)
+	cfb := cipher.NewCFBDecrypter(*sealionCipher, iv)
 
 	for {
 		block := <-*inputStream

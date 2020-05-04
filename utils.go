@@ -47,14 +47,14 @@ func startReader(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
 				break
 			} else {
 				block := make([]byte, fileSize-offset)
-				bytesRead, err := file.ReadAt(block, offset)
+				_, err := file.ReadAt(block, offset)
 				if err != nil {
 					panic(err.Error())
 				}
 
 				// PUSH partial-block to channel
 				*stream <- block
-				offset += int64(bytesRead)
+				offset += int64(len(block))
 			}
 		}
 	}
@@ -80,11 +80,12 @@ func startWriter(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
 		if block == nil {
 			break
 		}
-		count, err := file.WriteAt(block, offset)
+		_, err := file.WriteAt(block, offset)
 		if err != nil {
 			panic(err.Error())
 		}
-		offset += int64(count)
+		
+		offset += int64(len(block))
 	}
 
 	wg.Done()
