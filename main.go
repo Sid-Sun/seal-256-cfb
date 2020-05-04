@@ -56,8 +56,7 @@ func main() {
 			sealionCipher.Encrypt(sampleBytes, sampleBytes)
 			avg += time.Now().Sub(t0)
 		}
-		rate := (int64(sealion.BlockSize*samples) / avg.Microseconds()) * sealion.BlockSize * 1000
-
+		rate := int64(float64(sealion.BlockSize*samples) / float64(avg.Nanoseconds()) * 1000 * sealion.BlockSize * 1000 )
 		inputStream = make(chan []byte, rate) // 65536 - 1048576 - 524288 - 540672 - 655360*
 		outputStream = make(chan []byte, rate)
 
