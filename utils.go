@@ -6,10 +6,11 @@ import (
 	"os"
 	"sync"
 
+	"github.com/cheggaaa/pb"
 	"github.com/sid-sun/sealion"
 )
 
-func startReader(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
+func startReader(fileName string, stream *chan []byte, progressStream *chan int64, wg *sync.WaitGroup) {
 	if fileExists(fileName) {
 		file, err := os.Open(fileName)
 		if err != nil {
@@ -29,6 +30,8 @@ func startReader(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
 
 		fileSize := fileInfo.Size()
 
+		*progressStream <- fileSize
+
 		offset := int64(0)
 		for {
 			if fileSize-offset >= sealion.BlockSize {
@@ -41,6 +44,7 @@ func startReader(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
 				// PUSH full-block to channel
 				*stream <- block
 				offset += sealion.BlockSize
+				*progressStream <- offset
 			} else if fileSize-offset == 0 { // Once the entire file is read, exit
 				// Send nil to stream to signal end
 				*stream <- nil
@@ -55,11 +59,26 @@ func startReader(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
 				// PUSH partial-block to channel
 				*stream <- block
 				offset += int64(len(block))
+				*progressStream <- offset
 			}
 		}
+	} else {
+		panic("Input File does not exist")
 	}
 
 	wg.Done()
+}
+
+func progressBar(count int64, progressStream *chan int64) {
+	bar := pb.StartNew(int(count))
+	var prev int
+	var i int
+	for i = 0; i < int(count); {
+		i = int(<-*progressStream)
+		bar.Add(i - prev)
+		prev = i
+	}
+	bar.Finish()
 }
 
 func startWriter(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
@@ -84,7 +103,7 @@ func startWriter(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
 		if err != nil {
 			panic(err.Error())
 		}
-		
+
 		offset += int64(len(block))
 	}
 

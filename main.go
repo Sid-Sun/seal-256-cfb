@@ -22,6 +22,7 @@ func main() {
 	var passPhrase []byte
 
 	var inputStream, outputStream chan []byte
+	var progressStream chan int64
 	var wg sync.WaitGroup
 
 	if len(os.Args) == 4 || len(os.Args) == 5 {
@@ -56,12 +57,14 @@ func main() {
 			sealionCipher.Encrypt(sampleBytes, sampleBytes)
 			avg += time.Now().Sub(t0)
 		}
-		rate := int64(float64(sealion.BlockSize*samples) / float64(avg.Nanoseconds()) * 1000 * sealion.BlockSize * 1000 )
+
+		rate := int64(float64(sealion.BlockSize*samples) / float64(avg.Nanoseconds()) * 1000 * sealion.BlockSize * 1000)
 		inputStream = make(chan []byte, rate) // 65536 - 1048576 - 524288 - 540672 - 655360*
 		outputStream = make(chan []byte, rate)
+		progressStream = make(chan int64)
 
 		wg.Add(1)
-		go startReader(os.Args[2], &inputStream, &wg)
+		go startReader(os.Args[2], &inputStream, &progressStream, &wg)
 
 	} else {
 		fmt.Printf("Usage:\n")
@@ -87,6 +90,7 @@ func main() {
 	}
 	go startWriter(outputPath, &outputStream, &wg)
 
+	progressBar(<-progressStream, &progressStream)
 	wg.Wait()
 }
 
