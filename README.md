@@ -1,8 +1,6 @@
-# seal-256-cfb
+## seal-256-cfb
 
-## seal-256-cfb is a CLI program which implements the [SeaLion Block Cipher](https://github.com/sid-sun/sealion) in CFB (cipher feedback) mode with 256-Bit length keys using SHA3-256 with files.
-
-### The program uses buffered channels and seperate goroutines for reading chunks from file, processing them and writing them. The buffer size depends on the machine and is calculated based on processing speed of SeaLion.
+### seal-256-cfb is a CLI program which implements the [SeaLion Block Cipher](https://github.com/sid-sun/sealion) in CFB (cipher feedback) mode with 256-Bit length keys using SHA3-256 with files.
 
 ## Usage:
 
@@ -19,15 +17,18 @@ To get help: seal-256-cfb (--help / -h)
 ## Installation:
 
 ### Compiled Binaries: 
+
 > [Linux amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_linux-amd64)
 
 > [Darwin amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_darwin-amd64)
 
 > [Windows amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_windows-amd64.exe)
 
+
 ### Debian Packages:
 
 > [amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_amd64.deb)
+
 
 ### Use YAPPA (Yet Another PPA) :
 
@@ -59,4 +60,4 @@ The version number consists of three parts:
 
 Updating on major and minor version changes is highly recommended.
 
-Cheers!
+### Cheers!
