@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           source ./env.file
-          cp built-binaries/seal-256-cfb_linux-amd64 $folder/usr/bin/.
+          cp built-binaries/seal-256-cfb_linux-amd64 $folder/usr/bin/seal-256-cfb
 
       - name: Build debian package
         shell: bash
