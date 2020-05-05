@@ -1,0 +1,197 @@
+name: Build and deploy
+
+on:
+    push:
+      branches: [ master ]
+
+jobs:
+  build_binary:
+    name: Build binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.13
+        id: go
+
+      - name: Check-out code
+        shell: bash
+        run: |
+          dir=`pwd`
+          mkdir -p /home/runner/go/bin
+          mkdir /home/runner/go/src
+          cd /home/runner/go/src
+          git clone https://github.com/sid-sun/seal-256-cfb.git
+          cd /home/runner/go/src/seal-256-cfb
+
+      - name: Install dependencies
+        run: |
+          cd /home/runner/go/src/seal-256-cfb
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            /home/runner/go/bin/dep ensure
+          fi
+
+      - name: Build binary
+        run: |
+          cd /home/runner/go/src/seal-256-cfb
+          env GOOS=linux GOARCH=amd64 go build -v -o seal-256-cfb_linux-amd64
+          env GOOS=darwin GOARCH=amd64 go build -v -o seal-256-cfb_darwin-amd64
+          env GOOS=windows GOARCH=amd64 go build -v -o seal-256-cfb_windows-amd64.exe
+          mkdir -p /home/runner/work/seal-256-cfb/seal-256-cfb/binaries
+          cp seal-256-cfb_* /home/runner/work/seal-256-cfb/seal-256-cfb/binaries
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: built-binaries
+          path: binaries
+
+  build_deb_package:
+    name: Build Debian Package
+    needs: build_binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built binaries
+        uses: actions/download-artifact@v1
+        with:
+          name: built-binaries
+
+      - name: Read version and folder
+        shell: bash
+        run: |
+          chmod +x built-binaries/seal-256-cfb_linux-amd64
+          export version=`built-binaries/seal-256-cfb_linux-amd64 -v`
+          export folder=`echo seal-256-cfb_amd64`
+          echo "export version=\"$version\"" > env.file
+          echo "export folder=\"$folder\"" >> env.file
+
+      - name: Setup folder structure
+        shell: bash
+        run: |
+          source ./env.file
+          mkdir -p $folder/usr/bin
+          mkdir $folder/DEBIAN
+
+      - name: Write control file
+        shell: bash
+        run: |
+          source ./env.file
+          echo "Package: seal-256-cfb" > $folder/DEBIAN/control
+          echo "Version: "$version >> $folder/DEBIAN/control
+          echo "Maintainer: Sid Sun <sid@sidsun.com>" >> $folder/DEBIAN/control
+          echo "Description: A CLI program which implements the SeaLion Block Cipher." >> $folder/DEBIAN/control
+          echo "Homepage: https://github.com/sid-sun/seal-256-cfb" >> $folder/DEBIAN/control
+          echo "Architecture: amd64" >> $folder/DEBIAN/control
+
+      - name: Copy binary to build folder
+        shell: bash
+        run: |
+          source ./env.file
+          cp built-binaries/seal-256-cfb_linux-amd64 $folder/usr/bin/.
+
+      - name: Build debian package
+        shell: bash
+        run: |
+          source ./env.file
+          dpkg-deb --build $folder
+          file="echo $folder.deb"
+
+      - name: Upload debian package
+        uses: actions/upload-artifact@v1
+        with:
+          name: debian-package
+          path: seal-256-cfb_amd64.deb
+
+  deploy:
+    name: Deploy
+    needs: build_deb_package
+    runs-on: ubuntu-latest
+    env:
+      EMAIL: "sid@sidsun.com"
+      NAME: "Sid Sun"
+    steps:
+      - name: Download the debian package
+        uses: actions/download-artifact@v1
+        with:
+          name: debian-package
+
+      - name: Install package and read version number
+        shell: bash
+        run: |
+          sudo dpkg -i debian-package/seal-256-cfb_amd64.deb
+          export version=`seal-256-cfb -v`
+          echo "export version=\"$version\"" > env.file
+
+      - name: Get assets and decrypt data
+        shell: bash
+        env:
+          PASSPHRASE: ${{ secrets.PASSPHRASE }}
+        run: |
+          git clone https://github.com/Sid-Sun/github-actions-assets.git
+          cd github-actions-assets
+          ./decrypt_gpg_key.sh
+          ./decrypt_id_rsa.sh
+
+      - name: Configure git and GPG
+        shell: bash
+        run: |
+          mkdir ~/.ssh
+          cp ~/gh_actions_secrets/id_rsa ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          gpg --import ~/gh_actions_secrets/secret.asc
+          ssh-keyscan github.com > ~/.ssh/known_hosts
+          GPG_KEY_ID=`gpg --with-fingerprint --verbose github-actions-assets/KEY.gpg 2>&1 | awk '/^sig/{ print $2 }' | tail -1`
+          git config --global user.name $NAME
+          git config --global user.email $EMAIL
+          git config --global user.signingKey $GPG_KEY_ID
+          cd ..
+
+      - name: Clone PPA
+        shell: bash
+        run: git clone git@github.com:Sid-Sun/yappa.git
+
+      - name: Copy artifacts to PPA
+        shell: bash
+        run: |
+          source ./env.file
+          cp debian-package/seal-256-cfb_amd64.deb yappa/seal-256-cfb_"$version"_amd64.deb
+
+      - name: Update release and package files
+        shell: bash
+        run: |
+          cd yappa
+          dpkg-scanpackages --multiversion . > Packages
+          gzip -k -f Packages
+          apt-ftparchive release . > Release
+          gpg --default-key "${EMAIL}" -abs -o - Release > Release.gpg
+          gpg --default-key "${EMAIL}" --clearsign -o - Release > InRelease
+
+      - name: Commit changes
+        shell: bash
+        run: |
+           cd yappa
+           git add -A
+           git commit -s -S -m "update seal-256-cfb"
+
+      - name: Download built binary
+        uses: actions/download-artifact@v1
+        with:
+          name: built-binaries
+
+      - name: Push to file hosting
+        shell: bash
+        env:
+          PORT: ${{ secrets.HOSTING_PORT }}
+          USER: ${{ secrets.HOSTING_USER}}
+          HOST: ${{ secrets.HOST }}
+        run: |
+           ./github-actions-assets/seal-push-to-hosting.sh
+
+      - name: Push to deployment
+        shell: bash
+        run: |
+          cd yappa
+          git push origin
