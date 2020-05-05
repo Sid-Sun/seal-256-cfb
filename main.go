@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sid-sun/sealion"
+	"golang.org/x/crypto/sha3"
 )
 
 const version string = "1.0.0" // Program Version
@@ -49,7 +49,7 @@ func main() {
 		}
 
 		// Read contents of passphrase file and pass it through SHA-256
-		key := sha256.Sum256(readFromFile(os.Args[3]))
+		key := sha3.Sum256(readFromFile(os.Args[3]))
 
 		// Create the sealion cipher from the hash of passphrase
 		sealionCipher, err = sealion.NewCipher(key[:])
