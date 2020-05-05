@@ -7,10 +7,9 @@ import (
 	"sync"
 
 	"github.com/cheggaaa/pb"
-	"github.com/sid-sun/sealion"
 )
 
-func readInput(fileName string, stream *chan []byte, progressStream *chan int64, wg *sync.WaitGroup) {
+func readInput(fileName string, BlockSize int, stream *chan []byte, progressStream *chan int64, wg *sync.WaitGroup) {
 	// Defer waitgroup go-routine done before returning
 	defer wg.Done()
 
@@ -42,9 +41,9 @@ func readInput(fileName string, stream *chan []byte, progressStream *chan int64,
 	// Initialize offset
 	offset := int64(0)
 	for {
-		if fileSize-offset >= sealion.BlockSize {
+		if fileSize-offset >= int64(BlockSize) {
 			// Create full-block
-			block := make([]byte, sealion.BlockSize)
+			block := make([]byte, BlockSize)
 
 			// Read from file at offset to full-block
 			// Panic if there are any errors

@@ -20,7 +20,7 @@ func main() {
 	var outputPath string
 	var err error
 
-	var sealionCipher cipher.Block
+	var blockCipher cipher.Block
 	var inputStream, outputStream chan []byte
 	var progressStream chan int64
 	var wg sync.WaitGroup
@@ -52,21 +52,21 @@ func main() {
 		key := sha3.Sum256(readFromFile(os.Args[3]))
 
 		// Create the sealion cipher from the hash of passphrase
-		sealionCipher, err = sealion.NewCipher(key[:])
+		blockCipher, err = sealion.NewCipher(key[:])
 		if err != nil {
 			panic(err.Error())
 		}
 
-		// Run 10 samples through standard sealion block encryption
+		// Run 10 samples through standard cipher block encryption
 		// And measure the average time taken to encrypt a block
 		// So we can make a buffer of the appropriate size for the current machine
 		samples := 10
-		sampleBytes := make([]byte, sealion.BlockSize)
+		sampleBytes := make([]byte, blockCipher.BlockSize())
 		var avg time.Duration
 
 		for i := 0; i < samples; i++ {
 			t0 := time.Now()
-			sealionCipher.Encrypt(sampleBytes, sampleBytes)
+			blockCipher.Encrypt(sampleBytes, sampleBytes)
 			avg += time.Now().Sub(t0)
 		}
 
@@ -74,7 +74,7 @@ func main() {
 		// Each nano second (in float) and multiplying the result by the blocksize and 1000 * 1000
 		// The multiplication by these specific magic numbers is based on some logic which I came up with
 		// But failed to properly document - will be explained at some point in the unforseeable future
-		bufferSize := int64(float64(sealion.BlockSize*samples) / float64(avg.Nanoseconds()) * sealion.BlockSize * 1000000)
+		bufferSize := int64(float64(blockCipher.BlockSize()*samples) / float64(avg.Nanoseconds()) * float64(blockCipher.BlockSize()) * 1000000)
 
 		// Create buffere input, output and progress channels with the calculated buffer size
 		inputStream = make(chan []byte, bufferSize)
@@ -83,7 +83,7 @@ func main() {
 
 		// Start the reader
 		wg.Add(1)
-		go readInput(os.Args[2], &inputStream, &progressStream, &wg)
+		go readInput(os.Args[2], blockCipher.BlockSize(), &inputStream, &progressStream, &wg)
 	} else {
 		// Check for version
 		if len(os.Args) > 1 {
@@ -105,9 +105,9 @@ func main() {
 	// Start the encrypt / decrypt and output writer routines
 	wg.Add(2)
 	if toEncrypt {
-		go encrypt(&sealionCipher, &inputStream, &outputStream, &wg)
+		go encrypt(&blockCipher, &inputStream, &outputStream, &wg)
 	} else {
-		go decrypt(&sealionCipher, &inputStream, &outputStream, &wg)
+		go decrypt(&blockCipher, &inputStream, &outputStream, &wg)
 	}
 	go writeOutput(outputPath, &outputStream, &wg)
 
@@ -120,12 +120,12 @@ func main() {
 	wg.Wait()
 }
 
-func encrypt(sealionCipher *cipher.Block, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
+func encrypt(blockCipher *cipher.Block, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
 	// Defer waitgroup go-routine done before returning
 	defer wg.Done()
 
 	// Generate a random initialisation vector for CFB
-	iv := make([]byte, (*sealionCipher).BlockSize())
+	iv := make([]byte, (*blockCipher).BlockSize())
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		panic(err.Error())
 	}
@@ -134,7 +134,7 @@ func encrypt(sealionCipher *cipher.Block, inputStream, outputStream *chan []byte
 	*outputStream <- iv
 
 	// Create CFB Encrypter
-	cfb := cipher.NewCFBEncrypter(*sealionCipher, iv)
+	cfb := cipher.NewCFBEncrypter(*blockCipher, iv)
 
 	for {
 		// Fetch full / part block from inputStream
@@ -154,7 +154,7 @@ func encrypt(sealionCipher *cipher.Block, inputStream, outputStream *chan []byte
 	}
 }
 
-func decrypt(sealionCipher *cipher.Block, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
+func decrypt(blockCipher *cipher.Block, inputStream, outputStream *chan []byte, wg *sync.WaitGroup) {
 	// Defer waitgroup go-routine done before returning
 	defer wg.Done()
 
@@ -164,7 +164,7 @@ func decrypt(sealionCipher *cipher.Block, inputStream, outputStream *chan []byte
 	// Create CFB decrypter with IV
 	// Potential error of IV not being of the same size as cipher Block Size
 	// Is handled in NewCFBDecrypter already
-	cfb := cipher.NewCFBDecrypter(*sealionCipher, iv)
+	cfb := cipher.NewCFBDecrypter(*blockCipher, iv)
 
 	for {
 		// Read block from input stream
