@@ -1,0 +1,4 @@
+.idea
+vendor
+*.seal
+seal-256-cfb*
