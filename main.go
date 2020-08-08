@@ -37,15 +37,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		// If there's a 5th arguement, treat it as output file name
-		if len(os.Args) == 5 {
-			outputPath = os.Args[4]
-		}
-
 		// If the input file does not exist, print so and quit
 		if !fileExists(os.Args[2]) {
 			fmt.Println("File:", os.Args[2], "seems to be nonexistent")
 			os.Exit(1)
+		}
+
+		// If there's a 5th distinct arguement, treat it as output file name
+		if len(os.Args) == 5 && os.Args[4] != os.Args[2] {
+			outputPath = os.Args[4]
 		}
 
 		// Read contents of passphrase file and pass it through SHA-256
