@@ -13,7 +13,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-const version string = "1.0.0" // Program Version
+const version string = "2.0.0" // Program Version
 
 func main() {
 	var toEncrypt bool
