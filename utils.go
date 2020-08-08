@@ -131,11 +131,16 @@ func writeOutput(fileName string, stream *chan []byte, wg *sync.WaitGroup) {
 
 func progressBar(fileSize int64, progressStream *chan int64) {
 	// Create new progressbar with count
-	bar := pb.StartNew(int(fileSize))
-	for offset := 0; offset < int(fileSize); {
-		offset = int(<-*progressStream)
-		// Set bar to current offset from reader
-		bar.Set(offset)
+	bar := pb.Start64(fileSize)
+	// Set template to full so we get remaining time
+	bar.SetTemplate(pb.Full)
+	// Set bytes to true so we get nicely formatted output
+	bar.Set(pb.Bytes, true)
+	var offset int64
+	for offset < fileSize {
+		offset = <-*progressStream
+		// Set bar progress to current offset from the reader
+		bar.SetCurrent(offset)
 	}
 	bar.Finish()
 }
