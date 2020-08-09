@@ -16,18 +16,9 @@ To get help: seal-256-cfb (--help / -h)
 
 ## Installation:
 
-### Compiled Binaries: 
+### Compressed Compiled Binaries and Debian package: 
 
-> [Linux amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_linux-amd64)
-
-> [Darwin amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_darwin-amd64)
-
-> [Windows amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_windows-amd64.exe)
-
-
-### Debian Packages:
-
-> [amd64](https://cdn.sidsun.com/seal-256-cfb/seal-256-cfb_amd64.deb)
+> [amd64](https://github.com/Sid-Sun/seal-256-cfb/releases/latest/download/binaries_and_debian_package.tar)
 
 
 ### Use YAPPA (Yet Another PPA) :
