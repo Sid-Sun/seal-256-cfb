@@ -169,6 +169,11 @@ jobs:
         with:
           name: built-binaries
 
+      - name: Commit changes
+        shell: bash
+        run: |
+           tar -cf Build.tar built-binaries debian-package
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -180,49 +185,16 @@ jobs:
           draft: true
           prerelease: false
 
-      - name: Upload Linux Release Asset
+      - name: Upload Release Assets
         id: upload-release-asset 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./built-binaries/seal-256-cfb_linux-amd64
-          asset_name: seal-256-cfb_linux-amd64
-          asset_content_type: application/x-executable
-
-      - name: Upload Windows Release Asset
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./built-binaries/seal-256-cfb_windows-amd64.exe
-          asset_name: seal-256-cfb_windows-amd64.exe
-          asset_content_type: application/x-dosexec
-
-      - name: Upload Darwin Release Asset
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./built-binaries/seal-256-cfb_darwin-amd64
-          asset_name: seal-256-cfb_darwin-amd64
-          asset_content_type: application/x-mach-binary
-
-      - name: Upload Debian Package Release Asset
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./debian-package/seal-256-cfb_amd64.deb
-          asset_name: seal-256-cfb_amd64.deb
-          asset_content_type: application/vnd.debian.binary-package
+          asset_path: ./Build.tar
+          asset_name: binaries_and_debian_package.tar
+          asset_content_type: application/x-tar
 
       - name: Push to deployment
         shell: bash
