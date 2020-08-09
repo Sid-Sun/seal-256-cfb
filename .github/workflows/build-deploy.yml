@@ -2,7 +2,8 @@ name: Build and deploy
 
 on:
     push:
-      branches: [ master ]
+      tags:
+        - 'v*'
 
 jobs:
   build_binary:
@@ -15,33 +16,20 @@ jobs:
           go-version: ^1.13
         id: go
 
-      - name: Check-out code
-        shell: bash
-        run: |
-          dir=`pwd`
-          mkdir -p /home/runner/go/bin
-          mkdir /home/runner/go/src
-          cd /home/runner/go/src
-          git clone https://github.com/sid-sun/seal-256-cfb.git
-          cd /home/runner/go/src/seal-256-cfb
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
 
       - name: Install dependencies
         run: |
-          cd /home/runner/go/src/seal-256-cfb
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-            /home/runner/go/bin/dep ensure
-          fi
+          go mod download
 
       - name: Build binary
         run: |
-          cd /home/runner/go/src/seal-256-cfb
           env GOOS=linux GOARCH=amd64 go build -v -o seal-256-cfb_linux-amd64
           env GOOS=darwin GOARCH=amd64 go build -v -o seal-256-cfb_darwin-amd64
           env GOOS=windows GOARCH=amd64 go build -v -o seal-256-cfb_windows-amd64.exe
-          mkdir -p /home/runner/work/seal-256-cfb/seal-256-cfb/binaries
-          cp seal-256-cfb_* /home/runner/work/seal-256-cfb/seal-256-cfb/binaries
+          mkdir -p binaries
+          cp seal-256-cfb_* binaries
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -181,14 +169,60 @@ jobs:
         with:
           name: built-binaries
 
-      - name: Push to file hosting
-        shell: bash
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
-          PORT: ${{ secrets.HOSTING_PORT }}
-          USER: ${{ secrets.HOSTING_USER}}
-          HOST: ${{ secrets.HOST }}
-        run: |
-           ./github-actions-assets/seal-push-to-hosting.sh
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+      - name: Upload Linux Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./built-binaries/seal-256-cfb_linux-amd64
+          asset_name: seal-256-cfb_linux-amd64
+          asset_content_type: application/x-executable
+
+      - name: Upload Windows Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./built-binaries/seal-256-cfb_windows-amd64.exe
+          asset_name: seal-256-cfb_windows-amd64.exe
+          asset_content_type: application/x-dosexec
+
+      - name: Upload Darwin Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./built-binaries/seal-256-cfb_darwin-amd64
+          asset_name: seal-256-cfb_darwin-amd64
+          asset_content_type: application/x-mach-binary
+
+      - name: Upload Debian Package Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./debian-package/seal-256-cfb_amd64.deb
+          asset_name: seal-256-cfb_amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
 
       - name: Push to deployment
         shell: bash
